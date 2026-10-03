@@ -1,5 +1,12 @@
+# Google Books Downloader - rewritten for Microsoft Edge (see core.py).
+# The original pinned selenium==4.0.0 + selenium-wire. selenium-wire's request
+# interception is unusable on Edge 154, and Edge dropped the "performance" log
+# type, so page-image URLs now come from the DevTools protocol websocket.
 regex
 progressbar2
-selenium==4.0.0
-selenium-wire>=5.1.0
 requests
+selenium>=4.20
+websocket-client>=1.7
+fastapi
+uvicorn[standard]
+pillow

@@ -1,2 +1,24 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
 
-google-books-downloader crash.log
+# --- Build artifacts ---
+build/
+dist/
+*.manifest
+*.spec
+!build.spec
+
+# --- Runtime output: downloaded books, logs, browser profiles ---
+downloads/
+*.log
+gbd.log
+crash.log
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini

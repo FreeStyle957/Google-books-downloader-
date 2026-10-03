@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Books Downloader</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#2a2f3a;
+    --txt:#e6e9ef; --dim:#9aa3b2; --accent:#4f8cff; --ok:#3ecf8e;
+    --warn:#f5a623; --err:#ff5f56;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:14px/1.6 "Segoe UI",-apple-system,"Microsoft YaHei",sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:28px 20px 60px}
+  h1{font-size:20px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--dim);font-size:12.5px;margin-bottom:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:18px;margin-bottom:16px}
+  .card h2{font-size:13px;margin:0 0 12px;color:var(--dim);font-weight:600;
+           text-transform:uppercase;letter-spacing:.06em}
+  label{display:block;font-size:12.5px;color:var(--dim);margin-bottom:6px}
+  input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);
+    color:var(--txt);border-radius:7px;padding:10px 12px;font-size:13.5px;outline:none}
+  input[type=text]:focus{border-color:var(--accent)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button{background:var(--accent);color:#fff;border:0;border-radius:7px;
+    padding:10px 18px;font-size:13.5px;font-weight:600;cursor:pointer;
+    transition:opacity .15s}
+  button:hover{opacity:.88}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .hint{color:var(--dim);font-size:12px;margin-top:8px}
+  .stats{display:flex;gap:22px;margin-top:14px;flex-wrap:wrap}
+  .stat b{display:block;font-size:22px;font-weight:600;line-height:1.2}
+  .stat span{font-size:11.5px;color:var(--dim)}
+  #log{background:#0b0d12;border:1px solid var(--line);border-radius:8px;
+    padding:12px;height:230px;overflow-y:auto;font:12px/1.7 Consolas,monospace;
+    color:#b9c2d0;white-space:pre-wrap}
+  #log .t{color:var(--dim)}
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;
+    font-weight:600}
+  .b-ok{background:rgba(62,207,142,.15);color:var(--ok)}
+  .b-warn{background:rgba(245,166,35,.15);color:var(--warn)}
+  .b-err{background:rgba(255,95,86,.15);color:var(--err)}
+  .b-idle{background:rgba(154,163,178,.15);color:var(--dim)}
+  .steps{margin:0;padding-left:0;list-style:none;counter-reset:s}
+  .steps li{counter-increment:s;position:relative;padding-left:30px;margin-bottom:14px}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:1px;
+    width:20px;height:20px;border-radius:50%;background:var(--panel2);
+    border:1px solid var(--line);font-size:11px;display:flex;
+    align-items:center;justify-content:center;color:var(--dim)}
+  .flexrow{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+  .grow{flex:1;min-width:220px}
+  .chk{display:flex;align-items:center;gap:7px;color:var(--dim);font-size:12.5px;
+    cursor:pointer;user-select:none}
+  .chk input{accent-color:var(--accent);width:15px;height:15px}
+  a{color:var(--accent)}
+  .pill{font:11.5px Consolas,monospace;color:var(--dim);background:var(--panel2);
+    border:1px solid var(--line);border-radius:5px;padding:2px 7px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Google Books Downloader</h1>
+  <div class="sub">
+    基于 aprikyan/google-books-downloader，适配 Microsoft Edge 154 重写 &nbsp;·&nbsp;
+    状态：<span id="st" class="badge b-idle">空闲</span>
+  </div>
+
+  <div class="card">
+    <h2>使用步骤</h2>
+    <ol class="steps">
+      <li>粘贴一本 Google Books 书籍的网址（该书必须有 <b>完整视图</b> 或 <b>摘要视图</b>）</li>
+      <li>点「扫描」，工具会翻完全书并抓取每页图片的原始地址</li>
+      <li>选择页码范围，点「下载」，图片会保存为高清 JPEG，并可合并成 PDF</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>1 · 扫描书籍</h2>
+    <div class="flexrow">
+      <div class="grow">
+        <label>Google Books 网址</label>
+        <input type="text" id="url" placeholder="https://books.google.com/books?id=buc0AAAAMAAJ" spellcheck="false">
+      </div>
+      <button id="btnScan">扫描</button>
+      <button id="btnCancel" class="ghost" disabled>中止</button>
+    </div>
+    <div class="hint">示例：<span class="pill">id=buc0AAAAMAAJ</span> 只需网址里含 <span class="pill">id=...</span> 即可</div>
+    <div class="stats" id="stats" style="display:none">
+      <div class="stat"><b id="sTitle">-</b><span>书名</span></div>
+      <div class="stat"><b id="sCount">-</b><span>可下载页数</span></div>
+      <div class="stat"><b id="sId">-</b><span>Book ID</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · 下载页面</h2>
+    <div class="flexrow">
+      <div class="grow">
+        <label>页码选择（all / 1,10-50,odd / 603）</label>
+        <input type="text" id="sel" value="all" spellcheck="false">
+      </div>
+      <div>
+        <label>保存到</label>
+        <input type="text" id="dir" placeholder="留空则保存到 downloads/" spellcheck="false" style="width:230px">
+      </div>
+      <label class="chk"><input type="checkbox" id="pdf" checked> 合并为 PDF</label>
+      <button id="btnDl" disabled>下载</button>
+    </div>
+    <div class="hint">只有预览范围内的页能下载，其余会自动跳过。图片按 Google 支持的最高分辨率（<span class="pill">w=69420</span>）抓取。</div>
+  </div>
+
+  <div class="card">
+    <h2>运行日志</h2>
+    <div id="log"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="btnOpen" class="ghost" disabled>打开下载目录</button>
+      <button id="btnClear" class="ghost">清空日志</button>
+      <span class="hint" id="lastOut" style="margin:0"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let lastDir = null;
+
+function log(msg, cls){
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  const t = new Date().toTimeString().slice(0,8);
+  d.innerHTML = `<span class="t">${t}</span>  ${escapeHtml(msg)}`;
+  const box = $('log');
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  while (box.childNodes.length > 500) box.removeChild(box.firstChild);
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function setStatus(text, cls){
+  const e = $('st'); e.textContent = text; e.className = 'badge ' + cls;
+}
+function setBusy(on, label){
+  $('btnScan').disabled = on;
+  $('btnDl').disabled = on || !$('sCount').dataset.n;
+  $('btnCancel').disabled = !on;
+  if (on) setStatus(label || '工作中', 'b-warn');
+}
+
+/* ---- progress stream ---- */
+if (window.EventSource) {
+  const es = new EventSource('/api/progress');
+  es.onmessage = ev => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.msg !== undefined) { log(d.msg); return; }
+      if (d.busy === false && $('btnScan').disabled) {
+        setBusy(false);
+        setStatus('就绪', 'b-ok');
+      }
+    } catch(e){}
+  };
+}
+
+/* ---- heartbeat: keeps the server alive while this tab is open ---- */
+function beat(){
+  fetch('/api/ping', {method:'POST'}).catch(()=>{});
+}
+beat(); setInterval(beat, 5000);
+window.addEventListener('beforeunload', ()=>{ navigator.sendBeacon('/api/ping'); });
+
+/* ---- actions ---- */
+$('btnScan').onclick = async () => {
+  const url = $('url').value.trim();
+  if (!url) { log('请输入网址', ''); setStatus('缺少网址','b-err'); return; }
+  setBusy(true, '扫描中');
+  log('开始扫描：' + url);
+  try {
+    const r = await fetch('/api/scan', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url})
+    }).then(x => x.json());
+    if (!r.ok) { log('扫描失败：' + r.error); setStatus('失败','b-err'); setBusy(false); return; }
+    $('sTitle').textContent = r.title;
+    $('sCount').textContent = r.count;
+    $('sCount').dataset.n = r.count;
+    $('sId').textContent = r.book_id;
+    $('stats').style.display = 'flex';
+    log(`扫描完成：共 ${r.count} 页可下载（${r.title}）`);
+    setStatus('就绪', 'b-ok');
+    $('btnDl').disabled = false;
+  } catch(e) {
+    log('请求出错：' + e); setStatus('错误','b-err'); setBusy(false);
+  }
+};
+
+$('btnDl').onclick = async () => {
+  setBusy(true, '下载中');
+  log('开始下载 ...');
+  try {
+    const r = await fetch('/api/download', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        selection: $('sel').value.trim() || 'all',
+        make_pdf: $('pdf').checked,
+        folder: $('dir').value.trim()
+      })
+    }).then(x => x.json());
+    if (!r.ok) { log('下载失败：' + r.error); setStatus('失败','b-err'); setBusy(false); return; }
+    lastDir = r.dir;
+    $('btnOpen').disabled = false;
+    $('lastOut').innerHTML = `已保存 ${r.files} 个文件 → <span class="pill">${escapeHtml(r.dir)}</span>`;
+    log(`下载完成：${r.files} 个文件` + (r.pdf ? `，PDF：${r.pdf}` : ''));
+    setStatus('完成', 'b-ok');
+    setBusy(false);
+  } catch(e) {
+    log('请求出错：' + e); setStatus('错误','b-err'); setBusy(false);
+  }
+};
+
+$('btnCancel').onclick = () => { fetch('/api/cancel',{method:'POST'}); log('已请求中止 ...'); };
+$('btnOpen').onclick = () => { fetch('/api/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:lastDir||''})}); };
+$('btnClear').onclick = () => { $('log').innerHTML = ''; };
+$('url').addEventListener('keydown', e => { if(e.key==='Enter') $('btnScan').click(); });
+
+log('就绪。粘贴一本书的网址后点「扫描」。');
+setStatus('空闲','b-idle');
+</script>
+</body>
+</html>
